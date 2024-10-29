@@ -134,15 +134,14 @@ def process_ec2_instances(instances, weekday_num, current_time):
                     last_day_num = weekday_map[last_day.lower()]
 
                     if first_day_num <= weekday_num <= last_day_num:
-                        
-                        #if OwnerID of instance equals with the ID in DynamoDB then OK!
                         if (item['schedulerName'] == ec2_schedule_tag):
-
+                            
                             start_time = item['start_time']
                             start_time = datetime.strptime(start_time, "%H:%M:%S").time()
 
                             stop_time = item['stop_time']
                             stop_time = datetime.strptime(stop_time, "%H:%M:%S").time()
+                            
                             print("------ Scheduler information -------")
                             print(f"- weekday is within specified range {weekday_db_range}")
                             print(f"--> start time {start_time}")
