@@ -69,29 +69,32 @@ def ec2_start_instance(instance_id):
     try:
         response_ec2_start = ec2_client.start_instances(InstanceIds=[instance_id])
         print(f"- starting EC2 instance {instance_id}")
-        print(response_ec2_start)
+        #print(response_ec2_start)
     except ClientError as e:
         print(e.response['Error']['Message'])
 
 def ec2_stop_instance(instance_id):
     try:
         response_ec2_stop = ec2_client.stop_instances(InstanceIds=[instance_id])
-        print(response_ec2_stop)
+        #print(response_ec2_stop)
     except ClientError as e:
         print(e.response['Error']['Message'])
 
 
 
 def process_ec2_instances(instances, weekday_num, current_time):
-
+    instanceCount = 0
     for reservations in instances:
+        instanceCount += 1
         for instance in reservations['Instances']:
+            print(f"Instance #{instanceCount}")
             instance_id = instance['InstanceId']
             instance_state = instance['State']['Name']
             tags = instance['Tags']
-
             print(f"# Instance ID: {instance_id}")
             print(f"# Instance State: {instance_state}")
+            print(40*"*")
+            
 
 
             #if instance has terminated status skip it
@@ -115,30 +118,23 @@ def process_ec2_instances(instances, weekday_num, current_time):
                     break
                 #if Scheduler tag is not empty
                 else:
-                    print(f"Instance Schedule Tag ig {ec2_schedule_tag}")
                     try:
                         response_dynamodb = schedule_table.scan(FilterExpression=Attr('schedulerName').eq(ec2_schedule_tag))
                         dynamo_items = response_dynamodb['Items']
-                        print(f"DynamoDB items: {dynamo_items}")
                     except ClientError as e:
                         print(e.response['Error']['Message'])
                     if not dynamo_items:
                         print(f"DynamoDB {dynamoDB_tableName} does not contain schedule tag named {ec2_schedule_tag}")
                     #Check DynamoDB content based on filter expression
                 for item in dynamo_items:
-                    print("#"*40)
-                    print(item)
                     #compare weekday range and validate with current day
                     weekday_db_range = item['weekdays']
                     first_day, last_day = weekday_db_range.split('-')
                     first_day_num = weekday_map[first_day.lower()]
                     last_day_num = weekday_map[last_day.lower()]
 
-                    print(f"F: {first_day}")
-                    print(f"L: {last_day}")
-                    print(f"WD: {weekday_num}")
                     if first_day_num <= weekday_num <= last_day_num:
-                        print(f"- weekday is within specified range {weekday_db_range}")
+                        
                         #if OwnerID of instance equals with the ID in DynamoDB then OK!
                         if (item['schedulerName'] == ec2_schedule_tag):
 
@@ -147,7 +143,8 @@ def process_ec2_instances(instances, weekday_num, current_time):
 
                             stop_time = item['stop_time']
                             stop_time = datetime.strptime(stop_time, "%H:%M:%S").time()
-
+                            print("------ Scheduler information -------")
+                            print(f"- weekday is within specified range {weekday_db_range}")
                             print(f"--> start time {start_time}")
                             print(f"--> stop time {stop_time}")
                             print(f"--> current time {current_time}")
