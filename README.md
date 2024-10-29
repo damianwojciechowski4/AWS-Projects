@@ -1,3 +1,3 @@
 # Set of AWS projects
 
-### 1) EC2 instance scheduler
+### 1) project1 - EC2 instance scheduler
