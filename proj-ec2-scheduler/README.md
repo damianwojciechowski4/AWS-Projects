@@ -1,3 +1,2 @@
-# Set of AWS projects
-
-### 1) project1 - EC2 instance scheduler
+# EC2 scheduler
+![Alt text](Lambda-EC2-scheduler (1).jpg)
