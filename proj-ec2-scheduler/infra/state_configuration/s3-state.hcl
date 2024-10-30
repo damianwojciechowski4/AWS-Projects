@@ -1,4 +1,4 @@
-bucket = "dev-tf-state-bucket-2024"
+bucket = "dev-tf-state-bucket-XYZ"
 key    = "state/ec2scheduler/terraform.tfstate"
-region = "eu-central-1"
-dynamodb_table = "myIaC-terraform-lockid"
+region = "AWS-region"
+dynamodb_table = "terraform-lockid-table"
