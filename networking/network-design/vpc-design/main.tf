@@ -35,6 +35,11 @@ variable "aws_region" {
 
 resource "aws_s3_bucket" "example" {
   bucket = "my-test-bucket-${random_id.suffix.hex}"
+  tags = {
+    Name        = "My bucket"
+    Environment = "Bucket"
+    IaC = "Terraform"
+  }
 }
 
 resource "random_id" "suffix" {
