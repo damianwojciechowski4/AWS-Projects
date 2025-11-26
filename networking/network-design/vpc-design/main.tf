@@ -7,23 +7,23 @@ terraform {
       version = "~> 5.0"
     }
     random = {
-        source  = "hashicorp/random"
-        version = "~> 3.0"
+      source  = "hashicorp/random"
+      version = "~> 3.0"
     }
   }
+  backend "s3" {
+    bucket = "terraform-state-aws-projects-network"
+    key    = "networking/network-design/vpc-design/state/terraform.tfstate"
+    region = "eu-central-1"
+  }
+
+
+
 }
 
 
 provider "aws" {
   region = var.aws_region
-}
-
-
-
-backend "s3" {
-  bucket = "terraform-state-aws-projects-network"
-  key    = "networking/network-design/vpc-design/state/terraform.tfstate"
-  region = "eu-central-1"
 }
 
 
