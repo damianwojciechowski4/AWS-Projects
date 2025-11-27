@@ -11,11 +11,7 @@ terraform {
       version = "~> 3.0"
     }
   }
-  backend "s3" {
-    bucket = "terraform-state-aws-projects-network"
-    key    = "networking/network-design/vpc-design/state/terraform.tfstate"
-    region = "eu-central-1"
-  }
+
 
 
 
