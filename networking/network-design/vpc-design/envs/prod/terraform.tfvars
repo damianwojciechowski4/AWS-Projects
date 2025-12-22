@@ -1,6 +1,6 @@
 aws_region  = "eu-central-1"
 environment = "prod"
-name        = "myVPC"
+name        = "PROD-VPC"
 
 vpc_cidr = "10.200.0.0/16"
 
