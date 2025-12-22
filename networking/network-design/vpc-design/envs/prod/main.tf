@@ -13,8 +13,8 @@ module "vpc" {
 
   tags = {
     Project     = "vpc-design"
-    Owner       = "DW"
     Environment = var.environment
+    Owner       = "DW"
     Terraform   = true
   }
 }
