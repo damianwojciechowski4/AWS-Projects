@@ -27,5 +27,5 @@ variable "private_subnets" {
 
 variable "name" {
   description = "VPC Name for resources"
-  type = string
+  type        = string
 }
