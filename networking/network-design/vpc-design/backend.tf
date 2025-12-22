@@ -3,5 +3,7 @@ terraform {
     bucket = "terraform-state-aws-projects-network"
     key    = "networking/network-design/vpc-design/state/terraform.tfstate"
     region = "eu-central-1"
+    encrypt = true
+    use_lockfile = true
   }
 }
