@@ -76,8 +76,8 @@ resource "aws_route_table" "public-rt" {
 }
 
 resource "aws_route_table_association" "public-rt-association" {
-  for_each = var.public_subnets
-  subnet_id  = each.value.id
+  for_each       = aws_subnet.public
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public-rt.id
-  depends_on = [aws_route_table.public-rt]
+  depends_on     = [aws_route_table.public-rt]
 }
