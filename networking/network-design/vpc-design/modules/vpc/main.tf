@@ -79,7 +79,7 @@ resource "aws_route_table_association" "public-rt-association" {
   # for_each = var.public_subnets
   count = length(var.public_subnets)
   route_table_id = aws_route_table.public-rt.id
-  subnet_id = element(aws_subnet.public[*].id, count.index)
+  subnet_id = aws_subnet.public[values(var.public_subnets)[count.index]].id
   
   depends_on = [aws_route_table.public-rt]
 
