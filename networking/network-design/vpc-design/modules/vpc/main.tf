@@ -41,7 +41,7 @@ resource "aws_subnet" "private" {
   )
 }
 
-resource "aws_internet_gateway" "this" {
+resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.this.id
 
   tags = merge(
@@ -52,17 +52,17 @@ resource "aws_internet_gateway" "this" {
   )
 }
 
-resource "aws_route_table" "public" {
+resource "aws_route_table" "public-rt" {
   vpc_id = aws_vpc.this.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.this.id
+    gateway_id = aws_internet_gateway.igw.id
   }
 
   route {
     ipv6_cidr_block = "::/0"
-    gateway_id      = aws_internet_gateway.this.id
+    gateway_id      = aws_internet_gateway.igw.id
   }
 
   tags = merge(
@@ -75,8 +75,12 @@ resource "aws_route_table" "public" {
 
 }
 
-resource "aws_route_table_association" "public" {
+resource "aws_route_table_association" "public-rt-association" {
   # for_each = var.public_subnets
-  route_table_id = aws_route_table.public.id
-  subnet_id = aws_subnet.public[each.key].id
+  count = length(var.public_subnets)
+  route_table_id = aws_route_table.public-rt.id
+  subnet_id = element(aws_subnet.public[*].id, count.index)
+  
+  depends_on = [aws_route_table.public-rt]
+
 }
