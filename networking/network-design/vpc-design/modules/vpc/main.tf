@@ -71,7 +71,7 @@ resource "aws_route_table" "public-rt" {
       Name = "${var.name}-public-rt"
     }
   )
-  depends_on = [aws_vpc.this, aws_internet_gateway.this]
+  depends_on = [aws_vpc.this, aws_internet_gateway.igw]
 
 }
 
