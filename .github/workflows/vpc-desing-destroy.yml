@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: eu-central-1
+      AWS_REGION: eu-central-1   # change if needed
 
     defaults:
       run:
