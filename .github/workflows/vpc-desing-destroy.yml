@@ -23,6 +23,11 @@ jobs:
         working-directory: networking/network-design/vpc-design/envs/prod
 
     steps:
+      - name: Debug repo structure
+        run: |
+            tree -L 3
+            pwd
+            ls -R networking/network-design/vpc-design
       - name: Safety check
         run: |
           if [ "${{ inputs.confirm }}" != "DESTROY-PROD" ]; then
