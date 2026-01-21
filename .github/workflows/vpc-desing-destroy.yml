@@ -34,7 +34,6 @@ jobs:
         run: |
             pwd
             tree -L 3
-            ls -R networking/network-design/vpc-design
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
