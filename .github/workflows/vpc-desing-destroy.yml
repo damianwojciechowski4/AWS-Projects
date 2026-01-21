@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Safety check
         run: |
-          if [ "${{ inputs.confirm }}" != "DESTROY-PROD" ]; then
+          if [ "${{ inputs.confirm }}" != "DESTROY-DEV" ]; then
             echo "Confirmation failed. Aborting."
             exit 1
           fi
