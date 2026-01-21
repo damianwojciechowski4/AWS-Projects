@@ -48,6 +48,9 @@ jobs:
 
       - name: Terraform Init
         run: terraform init -input=false
+        working-directory: networking/network-design/vpc-design/envs/prod
+
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve -input=false
+        working-directory: networking/network-design/vpc-design/envs/prod
