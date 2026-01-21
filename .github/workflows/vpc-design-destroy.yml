@@ -24,7 +24,7 @@ jobs:
     environment: prod
 
 
-    
+
     env:
       AWS_REGION: eu-central-1   # change if needed
       TF_IN_AUTOMATION: true
@@ -42,6 +42,10 @@ jobs:
     # The checkout action fetches the repository code and makes it available to the workflow.
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Debug environment variables
+        run: |
+          echo "AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}"
+          echo "AWS_REGION: ${{ vars.AWS_REGION }}"
 
     #   - name: Debug repo structure
     #     run: |
