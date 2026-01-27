@@ -18,6 +18,11 @@ on:
         type: choice
         options: [dev, prod]
         required: true
+      component:
+        description: 'Target Component'
+        type: choice
+        options: [vpc, ec2, alb]
+        required: true
       action:
         description: 'Action to perform'
         type: choice
@@ -378,8 +383,13 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: ${{ github.event.inputs.target_env }}
+      COMPONENT: ${{ github.event.inputs.component }}
     
     steps:
+      - name: Set working directory
+        id: set_workdir
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[github.event.inputs.component] }}/envs/${{ github.event.inputs.target_env }}" >> $GITHUB_OUTPUT
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -387,7 +397,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ github.event.inputs.target_env == 'prod' && vars.AWS_ROLE_ARN_PROD || vars.AWS_ROLE_ARN_DEV }}
-          role-session-name: gh-actions-manual-${{ github.event.inputs.target_env }}
+          role-session-name: gh-actions-manual-${{ env.TARGET_ENV }}-${{ env.COMPONENT }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -395,6 +405,21 @@ jobs:
         with:
           terraform_version: 1.10.0
 
-      - name: Manual Operation
-        run: |
-          echo "Manual ${{ github.event.inputs.action }} triggered for ${{ github.event.inputs.target_env }}"
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ steps.set_workdir.outputs.path }}
+
+      - name: Terraform Plan
+        if: github.event.inputs.action == 'plan'
+        run: terraform plan
+        working-directory: ${{ steps.set_workdir.outputs.path }}
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve
+        working-directory: ${{ steps.set_workdir.outputs.path }}
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+        working-directory: ${{ steps.set_workdir.outputs.path }}
