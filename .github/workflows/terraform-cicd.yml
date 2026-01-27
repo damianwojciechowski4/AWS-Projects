@@ -73,7 +73,7 @@ jobs:
     steps:
       - name: Set working directory
         id: set_workdir
-        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}/envs/${{ env.TARGET_ENV }}" >> $GITHUB_OUTPUT
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,10 +98,7 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: |
-          terraform init \
-            -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
-            -upgrade=false
+        run: terraform init
         working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Terraform Validate
@@ -119,7 +116,6 @@ jobs:
         id: plan
         run: |
           terraform plan \
-            -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
             -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
             -no-color
         working-directory: ${{ steps.set_workdir.outputs.path }}
@@ -168,7 +164,7 @@ jobs:
     steps:
       - name: Set working directory
         id: set_workdir
-        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}/envs/${{ env.TARGET_ENV }}" >> $GITHUB_OUTPUT
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -193,10 +189,7 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: |
-          terraform init \
-            -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
-            -upgrade=false
+        run: terraform init
         working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Terraform Validate
@@ -214,7 +207,6 @@ jobs:
         id: plan
         run: |
           terraform plan \
-            -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
             -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
             -no-color
         working-directory: ${{ steps.set_workdir.outputs.path }}
@@ -308,7 +300,7 @@ jobs:
     steps:
       - name: Set working directory
         id: set_workdir
-        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}/envs/${{ env.TARGET_ENV }}" >> $GITHUB_OUTPUT
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -326,17 +318,13 @@ jobs:
           terraform_version: ~1.7.0
 
       - name: Terraform Init
-        run: |
-          terraform init \
-            -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
-            -upgrade=false
+        run: terraform init
         working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Terraform Plan (Final Verification)
         id: plan
         run: |
           terraform plan \
-            -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
             -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
             -detailed-exitcode
         working-directory: ${{ steps.set_workdir.outputs.path }}
