@@ -40,14 +40,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  detect-changes:
+  detect-push-changes:
+    name: Detect Push Changes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      path: ${{ steps.filter.outputs.changes }}
+      dev_changes: ${{ steps.dev_filter.outputs.changes }}
+      prod_changes: ${{ steps.prod_filter.outputs.changes }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
+      - name: Detect DEV changes
+        uses: dorny/paths-filter@v3
+        id: dev_filter
+        with:
+          filters: |
+            vpc: 'networking/network-design/vpc-design/envs/dev/**'
+            ec2: 'platform/compute-design/ec2-design/envs/dev/**'
+            alb: 'platform/compute-design/alb-design/envs/dev/**'
+      - name: Detect PROD changes
+        uses: dorny/paths-filter@v3
+        id: prod_filter
+        with:
+          filters: |
+            vpc: 'networking/network-design/vpc-design/envs/prod/**'
+            ec2: 'platform/compute-design/ec2-design/envs/prod/**'
+            alb: 'platform/compute-design/alb-design/envs/prod/**'
+
+  detect-pr-changes:
+    name: Detect PR Changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      pr_changes: ${{ steps.pr_filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect PR component changes
+        uses: dorny/paths-filter@v3
+        id: pr_filter
         with:
           filters: |
             vpc: 'networking/network-design/vpc-design/**'
@@ -55,18 +84,18 @@ jobs:
             alb: 'platform/compute-design/alb-design/**'
 
   # DEV deployment - auto-apply on push to main
-  terraform-dev:
+  terraform-dev-apply:
     name: Terraform DEV (Auto-Deploy)
-    needs: detect-changes
+    needs: detect-push-changes
     if: |
-      needs.detect-changes.outputs.path != '[]' && 
+      needs.detect-push-changes.outputs.dev_changes != '[]' && 
       github.event_name == 'push' && 
       github.ref == 'refs/heads/main'
     
     strategy:
       max-parallel: 1
       matrix:
-        component: ${{ fromJSON(needs.detect-changes.outputs.path) }}
+        component: ${{ fromJSON(needs.detect-push-changes.outputs.dev_changes) }}
     
     runs-on: ubuntu-latest
     environment: dev  # No protection rules needed
@@ -149,15 +178,15 @@ jobs:
   # PROD deployment - plan on PR, apply only with approval
   terraform-prod-plan:
     name: Terraform PROD Plan (PR Preview)
-    needs: detect-changes
+    needs: detect-pr-changes
     if: |
-      needs.detect-changes.outputs.path != '[]' && 
+      needs.detect-pr-changes.outputs.pr_changes != '[]' && 
       github.event_name == 'pull_request'
     
     strategy:
       max-parallel: 1
       matrix:
-        component: ${{ fromJSON(needs.detect-changes.outputs.path) }}
+        component: ${{ fromJSON(needs.detect-pr-changes.outputs.pr_changes) }}
     
     runs-on: ubuntu-latest
     # No environment for plan - just preview
@@ -282,16 +311,16 @@ jobs:
   # PROD apply - triggered after PR merge, requires manual approval
   terraform-prod-apply:
     name: Terraform PROD Apply (Requires Approval)
-    needs: detect-changes
+    needs: detect-push-changes
     if: |
-      needs.detect-changes.outputs.path != '[]' && 
+      needs.detect-push-changes.outputs.prod_changes != '[]' && 
       github.event_name == 'push' && 
       github.ref == 'refs/heads/main'
     
     strategy:
       max-parallel: 1
       matrix:
-        component: ${{ fromJSON(needs.detect-changes.outputs.path) }}
+        component: ${{ fromJSON(needs.detect-push-changes.outputs.prod_changes) }}
     
     runs-on: ubuntu-latest
     environment: 
