@@ -1,6 +1,6 @@
 aws_region  = "eu-central-1"
 environment = "dev"
-name        = "DEV-VPC-Core"
+name        = "DEV-VPC-001"
 
 vpc_cidr = "10.200.0.0/16"
 
