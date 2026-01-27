@@ -1,0 +1,20 @@
+provider "aws" {
+  region = var.aws_region
+}
+
+
+module "vpc" {
+  source = "../../modules/vpc"
+
+  name            = var.name
+  vpc_cidr        = var.vpc_cidr
+  public_subnets  = var.public_subnets
+  private_subnets = var.private_subnets
+
+  tags = {
+    Project     = "network-design"
+    Environment = var.environment
+    Owner       = "DW"
+    Terraform   = true
+  }
+}
