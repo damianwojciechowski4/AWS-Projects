@@ -73,7 +73,7 @@ jobs:
     steps:
       - name: Set working directory
         id: set_workdir
-        run: echo "path=${{ fromJSON('{\"vpc\":\"networking/network-design/vpc-design\",\"ec2\":\"platform/compute-design/ec2-design\",\"alb\":\"platform/compute-design/alb-design\"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}" >> $GITHUB_OUTPUT
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -168,7 +168,7 @@ jobs:
     steps:
       - name: Set working directory
         id: set_workdir
-        run: echo "path=${{ fromJSON('{\"vpc\":\"networking/network-design/vpc-design\",\"ec2\":\"platform/compute-design/ec2-design\",\"alb\":\"platform/compute-design/alb-design\"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}" >> $GITHUB_OUTPUT
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -308,7 +308,7 @@ jobs:
     steps:
       - name: Set working directory
         id: set_workdir
-        run: echo "path=${{ fromJSON('{\"vpc\":\"networking/network-design/vpc-design\",\"ec2\":\"platform/compute-design/ec2-design\",\"alb\":\"platform/compute-design/alb-design\"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+        run: echo "path=${{ fromJSON('{"vpc":"networking/network-design/vpc-design","ec2":"platform/compute-design/ec2-design","alb":"platform/compute-design/alb-design"}')[matrix.component] }}" >> $GITHUB_OUTPUT
 
       - name: Checkout
         uses: actions/checkout@v4
