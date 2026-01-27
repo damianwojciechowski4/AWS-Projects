@@ -34,6 +34,14 @@ concurrency:
   group: terraform-${{ github.event.inputs.target_env || (github.event_name == 'pull_request' && 'prod' || 'dev') }}-${{ github.workflow }}
   cancel-in-progress: false
 
+env:
+  COMPONENTS_MAP: >-
+    {
+      "vpc": "networking/network-design/vpc-design",
+      "ec2": "platform/compute-design/ec2-design",
+      "alb": "platform/compute-design/alb-design"
+    }
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -69,11 +77,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: dev
-      WORKING_DIR: ${{ 
-        matrix.component == 'vpc' && 'networking/network-design/vpc-design' ||
-        matrix.component == 'ec2' && 'platform/compute-design/ec2-design' ||
-        'platform/compute-design/alb-design'
-      }}
+      WORKING_DIR: ${{ fromJSON(env.COMPONENTS_MAP)[matrix.component] }}
     
     steps:
       - name: Checkout
@@ -165,11 +169,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: prod
-      WORKING_DIR: ${{ 
-        matrix.component == 'vpc' && 'networking/network-design/vpc-design' ||
-        matrix.component == 'ec2' && 'platform/compute-design/ec2-design' ||
-        'platform/compute-design/alb-design'
-      }}
+      WORKING_DIR: ${{ fromJSON(env.COMPONENTS_MAP)[matrix.component] }}
     
     steps:
       - name: Checkout
@@ -306,11 +306,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: prod
-      WORKING_DIR: ${{ 
-        matrix.component == 'vpc' && 'networking/network-design/vpc-design' ||
-        matrix.component == 'ec2' && 'platform/compute-design/ec2-design' ||
-        'platform/compute-design/alb-design'
-      }}
+      WORKING_DIR: ${{ fromJSON(env.COMPONENTS_MAP)[matrix.component] }}
     
     steps:
       - name: Checkout
