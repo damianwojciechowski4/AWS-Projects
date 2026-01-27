@@ -1,10 +1,10 @@
-name: Terraform vpc-design DESTROY TEST (prod)
+name: Terraform vpc-design DESTROY TEST (DEV
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DESTROY-PROD to confirm VPC deletion'
+        description: 'Type DESTROY-DEV to confirm VPC deletion'
         required: true
 
 permissions:
@@ -14,27 +14,27 @@ permissions:
 
 # Prevents state-lock conflicts
 concurrency: 
-  group: terraform-prod-vpc
+  group: terraform-dev-vpc
   cancel-in-progress: false
 
 jobs:
   destroy:
-    name: Destroy VPC in PROD
+    name: Destroy VPC in DEV
     runs-on: ubuntu-latest
-    environment: prod
+    environment: dev
 
 
 
     env:
       AWS_REGION: eu-central-1   # change if needed
       TF_IN_AUTOMATION: true
-      WORKING_DIR: networking/network-design/vpc-design/envs/prod
+      WORKING_DIR: networking/network-design/vpc-design/envs/dev
 
     steps:
 
       - name: Safety check
         run: |
-          if [ "${{ inputs.confirm }}" != "DESTROY-PROD" ]; then
+          if [ "${{ inputs.confirm }}" != "DESTROY-DEV" ]; then
             echo "Confirmation failed. Aborting."
             exit 1
           fi

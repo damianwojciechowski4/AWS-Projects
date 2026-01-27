@@ -1,0 +1,415 @@
+name: Terraform Enterprise CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'networking/**'
+      - 'platform/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'networking/**'
+      - 'platform/**'
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Target Environment'
+        type: choice
+        options: [dev, prod]
+        required: true
+      action:
+        description: 'Action to perform'
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+# Prevent concurrent deployments to same environment
+concurrency:
+  group: terraform-${{ github.event.inputs.target_env || (github.event_name == 'pull_request' && 'prod' || 'dev') }}-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      path: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            vpc: 'networking/network-design/vpc-design/**'
+            ec2: 'platform/compute-design/ec2-design/**'
+            alb: 'platform/compute-design/alb-design/**'
+
+  # DEV deployment - auto-apply on push to main
+  terraform-dev:
+    name: Terraform DEV (Auto-Deploy)
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.path != '[]' && 
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main'
+    
+    strategy:
+      max-parallel: 1
+      matrix:
+        component: ${{ fromJSON(needs.detect-changes.outputs.path) }}
+    
+    runs-on: ubuntu-latest
+    environment: dev  # No protection rules needed
+    
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+      TARGET_ENV: dev
+      WORKING_DIR: ${{ 
+        matrix.component == 'vpc' && 'networking/network-design/vpc-design' ||
+        matrix.component == 'ec2' && 'platform/compute-design/ec2-design' ||
+        'platform/compute-design/alb-design'
+      }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN_DEV }}
+          role-session-name: gh-actions-terraform-dev-${{ matrix.component }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.7.0
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        working-directory: ${{ env.WORKING_DIR }}
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
+            -upgrade=false
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ${{ env.WORKING_DIR }}
+          soft_fail: true
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
+            -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
+            -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Upload DEV Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-dev-${{ matrix.component }}-${{ github.sha }}
+          path: ${{ env.WORKING_DIR }}/tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
+          retention-days: 7
+
+      - name: Terraform Apply (DEV - Auto)
+        run: |
+          terraform apply -auto-approve tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Deployment Summary
+        run: |
+          echo "### ✅ DEV Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Component:** ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** DEV" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  # PROD deployment - plan on PR, apply only with approval
+  terraform-prod-plan:
+    name: Terraform PROD Plan (PR Preview)
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.path != '[]' && 
+      github.event_name == 'pull_request'
+    
+    strategy:
+      max-parallel: 1
+      matrix:
+        component: ${{ fromJSON(needs.detect-changes.outputs.path) }}
+    
+    runs-on: ubuntu-latest
+    # No environment for plan - just preview
+    
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+      TARGET_ENV: prod
+      WORKING_DIR: ${{ 
+        matrix.component == 'vpc' && 'networking/network-design/vpc-design' ||
+        matrix.component == 'ec2' && 'platform/compute-design/ec2-design' ||
+        'platform/compute-design/alb-design'
+      }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (Read-Only for Plan)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN_PROD_READONLY }}
+          role-session-name: gh-actions-terraform-prod-plan-${{ matrix.component }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.7.0
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        working-directory: ${{ env.WORKING_DIR }}
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
+            -upgrade=false
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ${{ env.WORKING_DIR }}
+          soft_fail: true
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
+            -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
+            -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+        continue-on-error: true
+
+      - name: Convert Plan to JSON
+        if: steps.plan.outcome == 'success'
+        run: |
+          terraform show -json tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary > plan.json
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Upload PROD Plan Artifact
+        if: steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-prod-${{ matrix.component }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ env.WORKING_DIR }}/tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
+            ${{ env.WORKING_DIR }}/plan.json
+          retention-days: 30
+
+      - name: Comment Plan on PR
+        uses: actions/github-script@v7
+        if: always()
+        env:
+          PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
+          FMT_OUTCOME: ${{ steps.fmt.outcome }}
+          INIT_OUTCOME: ${{ steps.init.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const output = `### 🚀 Terraform PROD Plan - \`${{ matrix.component }}\`
+            
+            | Step | Status |
+            |------|--------|
+            | 🖌 Format | \`${{ steps.fmt.outcome }}\` |
+            | ⚙️ Init | \`${{ steps.init.outcome }}\` |
+            | 🤖 Validate | \`${{ steps.validate.outcome }}\` |
+            | 📖 Plan | \`${{ steps.plan.outcome }}\` |
+            
+            <details><summary>📋 Show Terraform Plan</summary>
+            
+            \`\`\`terraform
+            ${process.env.PLAN_OUTPUT}
+            \`\`\`
+            
+            </details>
+            
+            ---
+            **⚠️ This plan is for PRODUCTION environment**
+            - Merge this PR to trigger deployment approval workflow
+            - Manual approval will be required before apply
+            
+            *Pusher: @${{ github.actor }} | Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+  # PROD apply - triggered after PR merge, requires manual approval
+  terraform-prod-apply:
+    name: Terraform PROD Apply (Requires Approval)
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.path != '[]' && 
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main'
+    
+    strategy:
+      max-parallel: 1
+      matrix:
+        component: ${{ fromJSON(needs.detect-changes.outputs.path) }}
+    
+    runs-on: ubuntu-latest
+    environment: 
+      name: prod  # Configure this with required reviewers in GitHub settings
+      url: https://console.aws.amazon.com
+    
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+      TARGET_ENV: prod
+      WORKING_DIR: ${{ 
+        matrix.component == 'vpc' && 'networking/network-design/vpc-design' ||
+        matrix.component == 'ec2' && 'platform/compute-design/ec2-design' ||
+        'platform/compute-design/alb-design'
+      }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN_PROD }}
+          role-session-name: gh-actions-terraform-prod-apply-${{ matrix.component }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.7.0
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
+            -upgrade=false
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform Plan (Final Verification)
+        id: plan
+        run: |
+          terraform plan \
+            -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
+            -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
+            -detailed-exitcode
+        working-directory: ${{ env.WORKING_DIR }}
+        continue-on-error: true
+
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          if [ ${{ steps.plan.outputs.exitcode }} -eq 2 ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Changes detected - proceeding with apply"
+          elif [ ${{ steps.plan.outputs.exitcode }} -eq 0 ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes detected - skipping apply"
+          else
+            echo "❌ Plan failed"
+            exit 1
+          fi
+
+      - name: Terraform Apply (PROD - After Approval)
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          terraform apply -auto-approve tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Deployment Summary
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          echo "### ✅ PROD Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Component:** ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** PROD" >> $GITHUB_STEP_SUMMARY
+          echo "**Approved by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: No Changes Summary
+        if: steps.check_changes.outputs.has_changes == 'false'
+        run: |
+          echo "### ℹ️ PROD - No Changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Component:** ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "Infrastructure is up to date - no apply needed" >> $GITHUB_STEP_SUMMARY
+
+  # Manual workflow dispatch for both environments
+  terraform-manual:
+    name: Manual Terraform Operation
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_env }}
+    
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+      TARGET_ENV: ${{ github.event.inputs.target_env }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ github.event.inputs.target_env == 'prod' && vars.AWS_ROLE_ARN_PROD || vars.AWS_ROLE_ARN_DEV }}
+          role-session-name: gh-actions-manual-${{ github.event.inputs.target_env }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.7.0
+
+      - name: Manual Operation
+        run: |
+          echo "Manual ${{ github.event.inputs.action }} triggered for ${{ github.event.inputs.target_env }}"
