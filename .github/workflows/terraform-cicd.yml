@@ -34,14 +34,6 @@ concurrency:
   group: terraform-${{ github.event.inputs.target_env || (github.event_name == 'pull_request' && 'prod' || 'dev') }}-${{ github.workflow }}
   cancel-in-progress: false
 
-env:
-  COMPONENTS_MAP: >-
-    {
-      "vpc": "networking/network-design/vpc-design",
-      "ec2": "platform/compute-design/ec2-design",
-      "alb": "platform/compute-design/alb-design"
-    }
-
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -77,9 +69,12 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: dev
-      WORKING_DIR: ${{ fromJSON(env.COMPONENTS_MAP)[matrix.component] }}
     
     steps:
+      - name: Set working directory
+        id: set_workdir
+        run: echo "path=${{ fromJSON('{\"vpc\":\"networking/network-design/vpc-design\",\"ec2\":\"platform/compute-design/ec2-design\",\"alb\":\"platform/compute-design/alb-design\"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -98,7 +93,7 @@ jobs:
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check -recursive
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
         continue-on-error: true
 
       - name: Terraform Init
@@ -107,17 +102,17 @@ jobs:
           terraform init \
             -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
             -upgrade=false
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          working_directory: ${{ env.WORKING_DIR }}
+          working_directory: ${{ steps.set_workdir.outputs.path }}
           soft_fail: true
 
       - name: Terraform Plan
@@ -127,19 +122,19 @@ jobs:
             -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
             -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
             -no-color
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Upload DEV Plan Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-dev-${{ matrix.component }}-${{ github.sha }}
-          path: ${{ env.WORKING_DIR }}/tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
+          path: ${{ steps.set_workdir.outputs.path }}/tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
           retention-days: 7
 
       - name: Terraform Apply (DEV - Auto)
         run: |
           terraform apply -auto-approve tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Deployment Summary
         run: |
@@ -169,9 +164,12 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: prod
-      WORKING_DIR: ${{ fromJSON(env.COMPONENTS_MAP)[matrix.component] }}
     
     steps:
+      - name: Set working directory
+        id: set_workdir
+        run: echo "path=${{ fromJSON('{\"vpc\":\"networking/network-design/vpc-design\",\"ec2\":\"platform/compute-design/ec2-design\",\"alb\":\"platform/compute-design/alb-design\"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -190,7 +188,7 @@ jobs:
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check -recursive
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
         continue-on-error: true
 
       - name: Terraform Init
@@ -199,17 +197,17 @@ jobs:
           terraform init \
             -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
             -upgrade=false
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          working_directory: ${{ env.WORKING_DIR }}
+          working_directory: ${{ steps.set_workdir.outputs.path }}
           soft_fail: true
 
       - name: Terraform Plan
@@ -219,14 +217,14 @@ jobs:
             -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
             -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
             -no-color
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
         continue-on-error: true
 
       - name: Convert Plan to JSON
         if: steps.plan.outcome == 'success'
         run: |
           terraform show -json tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary > plan.json
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Upload PROD Plan Artifact
         if: steps.plan.outcome == 'success'
@@ -234,8 +232,8 @@ jobs:
         with:
           name: tfplan-prod-${{ matrix.component }}-${{ github.event.pull_request.head.sha }}
           path: |
-            ${{ env.WORKING_DIR }}/tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
-            ${{ env.WORKING_DIR }}/plan.json
+            ${{ steps.set_workdir.outputs.path }}/tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
+            ${{ steps.set_workdir.outputs.path }}/plan.json
           retention-days: 30
 
       - name: Comment Plan on PR
@@ -306,9 +304,12 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
       TARGET_ENV: prod
-      WORKING_DIR: ${{ fromJSON(env.COMPONENTS_MAP)[matrix.component] }}
     
     steps:
+      - name: Set working directory
+        id: set_workdir
+        run: echo "path=${{ fromJSON('{\"vpc\":\"networking/network-design/vpc-design\",\"ec2\":\"platform/compute-design/ec2-design\",\"alb\":\"platform/compute-design/alb-design\"}')[matrix.component] }}" >> $GITHUB_OUTPUT
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -329,7 +330,7 @@ jobs:
           terraform init \
             -backend-config="envs/${{ env.TARGET_ENV }}/backend.tfvars" \
             -upgrade=false
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Terraform Plan (Final Verification)
         id: plan
@@ -338,7 +339,7 @@ jobs:
             -var-file="envs/${{ env.TARGET_ENV }}/terraform.tfvars" \
             -out=tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary \
             -detailed-exitcode
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
         continue-on-error: true
 
       - name: Check for Changes
@@ -359,7 +360,7 @@ jobs:
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
           terraform apply -auto-approve tfplan-${{ env.TARGET_ENV }}-${{ matrix.component }}.binary
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ steps.set_workdir.outputs.path }}
 
       - name: Deployment Summary
         if: steps.check_changes.outputs.has_changes == 'true'
