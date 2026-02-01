@@ -4,6 +4,7 @@ terraform {
     key          = "networking/network-design/vpc-design/state/terraform.tfstate"
     region       = "eu-central-1"
     use_lockfile = true
+    encrypt = true
   }
 
 
