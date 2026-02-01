@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 
-module "spoke_a" {
+module "vpc" {
   source = "../../modules/vpc"
   for_each = var.vpc_configs
   name            = "${var.environment}-${each.key}"
