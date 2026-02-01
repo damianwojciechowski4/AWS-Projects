@@ -10,9 +10,9 @@ resource "aws_vpc" "this" {
 }
 
 resource "aws_subnet" "public" {
-  for_each = var.public_subnets
-
+  count             = var.enable_internet_gateway ? 1 : 0
   vpc_id            = aws_vpc.this.id
+  for_each          = var.public_subnets
   cidr_block        = each.value
   availability_zone = each.key
 
@@ -42,7 +42,9 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_internet_gateway" "igw" {
+  count  = var.enable_internet_gateway ? 1 : 0
   vpc_id = aws_vpc.this.id
+
 
   tags = merge(
     var.tags,

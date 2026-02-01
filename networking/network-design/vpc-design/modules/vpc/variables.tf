@@ -23,3 +23,17 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_internet_gateway" {
+  description = "Whether to create an Internet Gateway"
+  type        = bool
+  default     = true
+}
+
+variable "enable_nat_gateway" {
+  description = "Whether to create NAT Gateways for private subnets"
+  type        = bool
+  default     = false
+}
+
+
