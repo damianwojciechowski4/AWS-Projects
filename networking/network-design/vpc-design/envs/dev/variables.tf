@@ -11,8 +11,8 @@ variable "environment" {
 variable "vpc_configs" {
   description = "Map of VPC configurations for spoke_a, spoke_b and hub"
   type = map(object({
-    cidr       = string
-    public_subnets = map(string)
+    cidr            = string
+    public_subnets  = map(string)
     private_subnets = map(string)
   }))
 }

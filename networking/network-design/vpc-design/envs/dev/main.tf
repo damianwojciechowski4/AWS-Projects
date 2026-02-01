@@ -4,8 +4,8 @@ provider "aws" {
 
 
 module "vpc" {
-  source = "../../modules/vpc"
-  for_each = var.vpc_configs
+  source          = "../../modules/vpc"
+  for_each        = var.vpc_configs
   name            = "${var.environment}-${each.key}"
   vpc_cidr        = each.value.cidr
   public_subnets  = each.value.public_subnets
@@ -16,6 +16,6 @@ module "vpc" {
     Environment = var.environment
     Owner       = "DW"
     Terraform   = true
-    Role = each.key
+    Role        = each.key
   }
 }
