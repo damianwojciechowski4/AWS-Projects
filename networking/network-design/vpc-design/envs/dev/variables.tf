@@ -20,9 +20,10 @@ variable "spoke_vpc_configs" {
 
 variable "inspection_vpc_configs" {
   description = "Map of VPC configurations for inspection VPC"
-    type = map(object({
+  type = map(object({
     cidr            = string
     public_subnets  = map(string)
     private_subnets = map(string)
   }))
 }
+
