@@ -16,9 +16,8 @@ spoke_vpc_configs = {
 
 inspection_vpc_configs = {
   "inspection" = {
-    cidr            = "10.0.0.0/16"                         # Example CIDR for your inspection VPC
-    public_subnets  = { "eu-central-1a" = "10.0.1.0/24" }   # Example public subnet
-    private_subnets = { "eu-central-1a" = "10.0.101.0/24" } # Example private subnet
-  }
+    cidr            = "10.0.0.0/16"                      
+    public_subnets  = { "eu-central-1a" = "10.0.1.0/24" , "eu-central-1b" = "10.0.2.0/24" }   
+    private_subnets = { "eu-central-1a" = "10.0.101.0/24", "eu-central-1b" = "10.0.102.0/24"}
 
 }
