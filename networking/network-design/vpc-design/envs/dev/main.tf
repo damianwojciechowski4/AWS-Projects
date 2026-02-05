@@ -32,10 +32,10 @@ module "spoke_vpc" {
   enable_internet_gateway = false
   enable_nat_gateway      = false
   tags = {
-  Project     = "network-design/vpc-design"
-  Environment = var.environment
-  Owner       = "DW"
-  Terraform   = true
-  Role        = each.key
+    Project     = "network-design/vpc-design"
+    Environment = var.environment
+    Owner       = "DW"
+    Terraform   = true
+    Role        = each.key
   }
 }
