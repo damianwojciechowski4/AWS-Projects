@@ -39,3 +39,11 @@ module "spoke_vpc" {
     Role        = each.key
   }
 }
+
+
+module "inspection_security_group" {
+  source          = "../../modules/security_group"
+  environment     = var.environment
+  vpc_id          = module.inspection_vpc["inspection"].vpc_id
+  security_groups = var.inspection_security_groups
+}

@@ -1,0 +1,7 @@
+# Handle line endings automatically for text files
+* text=auto
+
+# Ensure Terraform files always use LF (standard for IaC)
+*.tf      text eol=lf
+*.tfvars  text eol=lf
+*.hcl     text eol=lf

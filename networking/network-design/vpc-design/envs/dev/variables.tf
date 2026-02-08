@@ -17,7 +17,6 @@ variable "spoke_vpc_configs" {
   }))
 }
 
-
 variable "inspection_vpc_configs" {
   description = "Map of VPC configurations for inspection VPC"
   type = map(object({
@@ -27,3 +26,21 @@ variable "inspection_vpc_configs" {
   }))
 }
 
+variable "inspection_security_groups" {
+  description = "Security groups for inspection VPC"
+  type = map(object({
+    description = optional(string, "Dynamic Security group")
+    ingress_rules = optional(list(object({
+      from_port   = number
+      to_port     = number
+      protocol    = string
+      cidr_blocks = list(string)
+    })), [])
+    egress_rules = optional(list(object({
+      from_port   = number
+      to_port     = number
+      protocol    = string
+      cidr_blocks = list(string)
+    })), [])
+  }))
+}
