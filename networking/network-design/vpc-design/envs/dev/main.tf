@@ -12,13 +12,12 @@ module "inspection_vpc" {
   private_subnets         = each.value.private_subnets
   enable_internet_gateway = true
   enable_nat_gateway      = false
-  tags = {
-    Project     = "network-design/vpc-design"
-    Environment = var.environment
-    Owner       = "DW"
-    Terraform   = true
-    Role        = each.key
-  }
+
+  #Tags
+  tags = merge(local.common_tags, {
+    Role = each.key
+    Name = "${var.environment}-${each.key}"
+  })
 }
 
 
@@ -31,13 +30,12 @@ module "spoke_vpc" {
   private_subnets         = each.value.private_subnets
   enable_internet_gateway = false
   enable_nat_gateway      = false
-  tags = {
-    Project     = "network-design/vpc-design"
-    Environment = var.environment
-    Owner       = "DW"
-    Terraform   = true
-    Role        = each.key
-  }
+
+  #Tags
+  tags = merge(local.common_tags, {
+    Role = each.key
+    Name = "${var.environment}-${each.key}"
+  })
 }
 
 
@@ -46,4 +44,12 @@ module "inspection_security_group" {
   environment     = var.environment
   vpc_id          = module.inspection_vpc["inspection"].vpc_id
   security_groups = var.inspection_security_groups
+
+  # Tags
+  tags = merge(local.common_tags, {
+    Role = "inspection"
+  })
+
+
 }
+

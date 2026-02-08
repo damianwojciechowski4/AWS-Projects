@@ -26,3 +26,9 @@ variable "vpc_id" {
   description = "ID of the VPC where to create the security groups"
   type        = string
 }
+
+variable "tags" {
+  description = "A mapping of tags to assign to the resource"
+  type        = map(string)
+  default     = {}
+}

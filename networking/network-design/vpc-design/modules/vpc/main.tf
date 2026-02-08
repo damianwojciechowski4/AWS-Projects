@@ -26,7 +26,7 @@ resource "aws_subnet" "public" {
 }
 
 resource "aws_subnet" "private" {
-  for_each = var.private_subnets
+  for_each          = var.private_subnets
   vpc_id            = aws_vpc.this.id
   cidr_block        = each.value
   availability_zone = each.key
@@ -66,7 +66,7 @@ resource "aws_route_table" "public-rt" {
   route {
     ipv6_cidr_block = "::/0"
     # Access the first (and only) element of the list when count is 1
-    gateway_id      = aws_internet_gateway.igw[0].id
+    gateway_id = aws_internet_gateway.igw[0].id
   }
 
   tags = merge(
@@ -81,8 +81,8 @@ resource "aws_route_table" "public-rt" {
 resource "aws_route_table_association" "public-rt-association" {
   # Create associations only if an Internet Gateway is enabled and there are public subnets.
   # Iterate over the actual created public subnet resources.
-  for_each       = var.enable_internet_gateway && length(aws_subnet.public) > 0 ? aws_subnet.public : {}
-  subnet_id      = each.value.id # each.value here refers to an aws_subnet.public resource
+  for_each  = var.enable_internet_gateway && length(aws_subnet.public) > 0 ? aws_subnet.public : {}
+  subnet_id = each.value.id # each.value here refers to an aws_subnet.public resource
   # Access the first (and only) element of the list when count is 1
   route_table_id = aws_route_table.public-rt[0].id
 }

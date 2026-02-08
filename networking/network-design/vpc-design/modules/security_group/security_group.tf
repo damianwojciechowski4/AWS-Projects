@@ -25,7 +25,7 @@ resource "aws_security_group" "this" {
     }
   }
 
-  tags = {
+  tags = merge(var.tags, {
     Name = "${var.environment}-${each.key}-SG"
-  }
+  })
 }
