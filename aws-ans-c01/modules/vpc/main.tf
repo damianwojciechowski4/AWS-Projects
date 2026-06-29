@@ -16,6 +16,9 @@ locals {
     for az in toset([for k, v in local.public_subnets : v.az]) :
     az => [for k, v in local.public_subnets : k if v.az == az][0]
   }
+
+  # All distinct AZs across all subnets — used to normalise output maps.
+  all_azs = toset([for s in values(var.subnets) : s.az])
 }
 
 # ── VPC ────────────────────────────────────────────────────────────────────────
