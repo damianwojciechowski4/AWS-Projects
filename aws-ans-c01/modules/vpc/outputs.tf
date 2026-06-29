@@ -29,7 +29,7 @@ output "subnet_ids_by_az" {
 }
 
 output "public_rt_id" {
-  description = "Public route table ID"
+  description = "Public route table ID. This route table is always created. When enable_igw = false it has no default route — it exists for explicit route additions by the caller."
   value       = aws_route_table.public.id
 }
 
