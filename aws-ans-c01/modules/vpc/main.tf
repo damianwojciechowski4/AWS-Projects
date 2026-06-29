@@ -50,3 +50,43 @@ resource "aws_subnet" "this" {
     Tier = each.value.public ? "public" : "private"
   })
 }
+
+# ── Internet Gateway ───────────────────────────────────────────────────────────
+
+resource "aws_internet_gateway" "this" {
+  count  = var.enable_igw ? 1 : 0
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(var.tags, { Name = "${var.name}-igw" })
+}
+
+# ── Public route table ─────────────────────────────────────────────────────────
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(var.tags, { Name = "${var.name}-public-rt" })
+}
+
+resource "aws_route" "public_ipv4_default" {
+  count = var.enable_igw ? 1 : 0
+
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.this[0].id
+}
+
+resource "aws_route" "public_ipv6_default" {
+  count = var.enable_igw && var.enable_ipv6 ? 1 : 0
+
+  route_table_id              = aws_route_table.public.id
+  destination_ipv6_cidr_block = "::/0"
+  gateway_id                  = aws_internet_gateway.this[0].id
+}
+
+resource "aws_route_table_association" "public" {
+  for_each = local.public_subnets
+
+  subnet_id      = aws_subnet.this[each.key].id
+  route_table_id = aws_route_table.public.id
+}
