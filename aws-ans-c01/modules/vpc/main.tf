@@ -90,3 +90,92 @@ resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.this[each.key].id
   route_table_id = aws_route_table.public.id
 }
+
+# ── NAT Gateway — regional mode (one GW, any public subnet) ───────────────────
+
+resource "aws_eip" "nat_regional" {
+  count  = var.enable_nat_gateway && var.nat_gateway_mode == "regional" ? 1 : 0
+  domain = "vpc"
+
+  tags = merge(var.tags, { Name = "${var.name}-nat-eip" })
+}
+
+resource "aws_nat_gateway" "regional" {
+  count = var.enable_nat_gateway && var.nat_gateway_mode == "regional" ? 1 : 0
+
+  allocation_id = aws_eip.nat_regional[0].id
+  # Place in the first public subnet (sorted for determinism).
+  subnet_id     = aws_subnet.this[sort(keys(local.public_subnets))[0]].id
+
+  tags = merge(var.tags, { Name = "${var.name}-nat" })
+
+  depends_on = [aws_internet_gateway.this]
+}
+
+# ── NAT Gateway — per_az mode (one GW per AZ) ─────────────────────────────────
+
+resource "aws_eip" "nat_per_az" {
+  for_each = var.enable_nat_gateway && var.nat_gateway_mode == "per_az" ? local.public_subnet_per_az : {}
+  domain   = "vpc"
+
+  tags = merge(var.tags, { Name = "${var.name}-nat-eip-${each.key}" })
+}
+
+resource "aws_nat_gateway" "per_az" {
+  for_each = var.enable_nat_gateway && var.nat_gateway_mode == "per_az" ? local.public_subnet_per_az : {}
+
+  allocation_id = aws_eip.nat_per_az[each.key].id
+  subnet_id     = aws_subnet.this[each.value].id
+
+  tags = merge(var.tags, { Name = "${var.name}-nat-${each.key}" })
+
+  depends_on = [aws_internet_gateway.this]
+}
+
+# ── Private route table — regional mode (one shared RT) ───────────────────────
+
+resource "aws_route_table" "private_regional" {
+  count  = var.nat_gateway_mode == "regional" ? 1 : 0
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(var.tags, { Name = "${var.name}-private-rt" })
+}
+
+resource "aws_route" "private_default_regional" {
+  count = var.enable_nat_gateway && var.nat_gateway_mode == "regional" ? 1 : 0
+
+  route_table_id         = aws_route_table.private_regional[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.regional[0].id
+}
+
+resource "aws_route_table_association" "private_regional" {
+  for_each = var.nat_gateway_mode == "regional" ? local.private_subnets : {}
+
+  subnet_id      = aws_subnet.this[each.key].id
+  route_table_id = aws_route_table.private_regional[0].id
+}
+
+# ── Private route table — per_az mode (one RT per AZ) ─────────────────────────
+
+resource "aws_route_table" "private_per_az" {
+  for_each = var.nat_gateway_mode == "per_az" ? local.private_azs : toset([])
+  vpc_id   = aws_vpc.this.id
+
+  tags = merge(var.tags, { Name = "${var.name}-private-rt-${each.key}" })
+}
+
+resource "aws_route" "private_default_per_az" {
+  for_each = var.enable_nat_gateway && var.nat_gateway_mode == "per_az" ? local.public_subnet_per_az : {}
+
+  route_table_id         = aws_route_table.private_per_az[each.key].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.per_az[each.key].id
+}
+
+resource "aws_route_table_association" "private_per_az" {
+  for_each = var.nat_gateway_mode == "per_az" ? local.private_subnets : {}
+
+  subnet_id      = aws_subnet.this[each.key].id
+  route_table_id = aws_route_table.private_per_az[var.subnets[each.key].az].id
+}
