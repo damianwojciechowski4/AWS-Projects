@@ -46,6 +46,54 @@ variable "enable_ipv6" {
   default     = false
 }
 
+variable "enable_flow_logs" {
+  description = "Enable VPC Flow Logs for the VPC. Requires a CloudWatch Log Group and IAM Role to be created outside this module."
+  type        = bool
+  default     = false
+}
+
+variable "flow_log_destination_type" {
+  description = "Destination type for VPC Flow Logs. Valid values are 'cloud-watch-logs' or 's3'."
+  type        = string
+  default     = "cloud-watch-logs"
+
+  validation {
+    condition     = contains(["cloud-watch-logs", "s3"], var.flow_log_destination_type)
+    error_message = "flow_log_destination_type must be 'cloud-watch-logs' or 's3'."
+  }
+}
+
+variable "flow_log_traffic_type" {
+  description = "Traffic type for VPC Flow Logs. Valid values are 'ACCEPT', 'REJECT', or 'ALL'."
+  type        = string
+  default     = "ALL"
+
+  validation {
+    condition     = contains(["ACCEPT", "REJECT", "ALL"], var.flow_log_traffic_type)
+    error_message = "flow_log_traffic_type must be 'ACCEPT', 'REJECT', or 'ALL'."
+  }
+}
+
+variable "flow_log_cloudwatch_log_group_arn" {
+  description = "ARN of an existing CloudWatch Log Group to deliver flow logs to. Required when flow_log_destination_type = 'cloud-watch-logs'; the module does not create the log group."
+  type        = string
+  default     = null
+}
+
+variable "flow_log_iam_role_arn" {
+  description = "ARN of an existing IAM role that grants the VPC Flow Logs service permission to publish to the CloudWatch Log Group. Required when flow_log_destination_type = 'cloud-watch-logs'."
+  type        = string
+  default     = null
+}
+
+variable "flow_log_s3_bucket_arn" {
+  description = "ARN of an existing S3 bucket to deliver flow logs to. Required when flow_log_destination_type = 's3'; the module does not create the bucket."
+  type        = string
+  default     = null
+}
+
+
+
 variable "map_public_ip_on_launch" {
   description = "Auto-assign a public IPv4 address to instances launched in public subnets (subnets with public = true)"
   type        = bool

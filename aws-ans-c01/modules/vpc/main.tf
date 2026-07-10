@@ -182,3 +182,30 @@ resource "aws_route_table_association" "private_per_az" {
   subnet_id      = aws_subnet.this[each.key].id
   route_table_id = aws_route_table.private_per_az[var.subnets[each.key].az].id
 }
+
+# ── VPC Flow Logs ──────────────────────────────────────────────────────────────
+# Destination (CloudWatch Log Group / IAM role, or S3 bucket) is created outside
+# this module — callers pass in an existing ARN via the flow_log_* variables.
+
+resource "aws_flow_log" "this" {
+  count = var.enable_flow_logs ? 1 : 0
+
+  vpc_id               = aws_vpc.this.id
+  traffic_type         = var.flow_log_traffic_type
+  log_destination_type = var.flow_log_destination_type
+  log_destination      = var.flow_log_destination_type == "s3" ? var.flow_log_s3_bucket_arn : var.flow_log_cloudwatch_log_group_arn
+  iam_role_arn         = var.flow_log_destination_type == "cloud-watch-logs" ? var.flow_log_iam_role_arn : null
+
+  tags = merge(var.tags, { Name = "${var.name}-flow-log" })
+
+  lifecycle {
+    precondition {
+      condition     = var.flow_log_destination_type != "cloud-watch-logs" || (var.flow_log_cloudwatch_log_group_arn != null && var.flow_log_iam_role_arn != null)
+      error_message = "flow_log_cloudwatch_log_group_arn and flow_log_iam_role_arn are required when flow_log_destination_type = 'cloud-watch-logs'."
+    }
+    precondition {
+      condition     = var.flow_log_destination_type != "s3" || var.flow_log_s3_bucket_arn != null
+      error_message = "flow_log_s3_bucket_arn is required when flow_log_destination_type = 's3'."
+    }
+  }
+}

@@ -25,3 +25,7 @@ output "private_rt_ids" {
 output "igw_id" {
   value = module.vpc.igw_id
 }
+
+output "flow_log_id" {
+  value = module.vpc.flow_log_id
+}

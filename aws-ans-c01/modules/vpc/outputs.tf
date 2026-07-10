@@ -47,6 +47,11 @@ output "igw_id" {
   value       = var.enable_igw ? aws_internet_gateway.this[0].id : null
 }
 
+output "flow_log_id" {
+  description = "VPC Flow Log ID (null when enable_flow_logs = false)"
+  value       = var.enable_flow_logs ? aws_flow_log.this[0].id : null
+}
+
 output "nat_gateway_ids" {
   description = "Map of AZ to NAT Gateway ID. In regional mode all AZs map to the same gateway. Empty map when enable_nat_gateway = false."
   value = var.enable_nat_gateway ? (
